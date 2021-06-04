@@ -32,17 +32,14 @@ export class ProductsService {
   }
 
   getAll(query: any) {
-    return {
-      success: true,
-      products: this.products
-    }
+    return this.products
   }
 
   create(payload: any) {
     const newProduct = { id: this.products.length + 1, ...payload };
     this.products = [...this.products, newProduct];
 
-    return { success: true, product: newProduct };
+    return newProduct;
   }
 
   update(id: number, payload: any) {
