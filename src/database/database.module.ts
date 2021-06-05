@@ -1,29 +1,61 @@
 import { Module, Global, HttpService, HttpModule } from '@nestjs/common';
+import { ConfigService, ConfigType } from '@nestjs/config';
+import { MongooseModule } from '@nestjs/mongoose';
 
-
-const API_KEY = '21312321';
-const API_KEY_PROD = 'PROD21312321';
+import { MongoClient } from 'mongodb';
+import config from '../config';
 
 @Global()
 @Module({
-  imports: [HttpModule],
+  imports: [
+    // MongooseModule.forRoot(`mongodb://localhost:27018`, {
+    //   user: 'root',
+    //   pass: 'root',
+    //   dbName: 'platzi-store'
+    // }),
+    MongooseModule.forRootAsync({
+      useFactory: (configService: ConfigType<typeof config>) => {
+        const {
+          connection,
+          user,
+          password,
+          host,
+          port,
+          dbName
+        } = configService.mongo;
+
+        return {
+          uri: `${connection}://${host}:${port}`,
+          user,
+          pass: password,
+          dbName
+        }
+      },
+      inject: [config.KEY]
+    })
+  ],
   providers: [
     {
-      provide: 'API_KEY',
-      useValue: process.env.NODE_ENV === 'prod' ? API_KEY_PROD : API_KEY
-    },
-    {
-      provide: 'TASKS',
-      useFactory: async (http: HttpService) => {
-        const tasks = await http
-          .get('https://jsonplaceholder.typicode.com/todos')
-          .toPromise();
+      provide: 'MONGO',
+      useFactory: async (configService: ConfigType<typeof config>) => {
+        const {
+          connection,
+          user,
+          password,
+          host,
+          port,
+          dbName
+        } = configService.mongo;
 
-        return tasks.data;
+        const uri = `${connection}://${user}:${password}@${host}:${port}/?authSource=admin&readPreference=primary`;
+
+        const client = new MongoClient(uri);
+        await client.connect();
+        return client.db(dbName);
       },
-      inject: [HttpService]
+      inject: [config.KEY]
     }
   ],
-  exports: ['API_KEY', 'TASKS']
+  exports: ['MONGO', MongooseModule]
 })
 export class DatabaseModule {}
